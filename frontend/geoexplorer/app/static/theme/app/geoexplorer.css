@@ -280,4 +280,14 @@ table.featureInfo caption{
      background-repeat: no-repeat;
 	
 }
+.deleteIcon{
+	background-image: url(img/silk/delete.png);
+}
 
+.zoomIcon{
+	background-image: url(img/silk/map_magnify.png);
+}
+
+.addIcon{
+	background-image: url(img/silk/add.png);
+}

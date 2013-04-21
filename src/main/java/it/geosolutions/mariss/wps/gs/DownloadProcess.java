@@ -29,6 +29,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
 import java.util.UUID;
@@ -64,7 +65,9 @@ public class DownloadProcess implements GSProcess {
 
     static final Logger LOGGER = Logging.getLogger(DownloadProcess.class);
 
-    static String outputDirectory;
+    private String outputDirectory;
+    
+    private String baseURL;
 
     private Catalog catalog;
 
@@ -75,10 +78,14 @@ public class DownloadProcess implements GSProcess {
     /**
      * @param outputDirectory the outputDirectory to set
      */
-    public static void setOutputDirectory(String outputDirectory) {
-        DownloadProcess.outputDirectory = outputDirectory;
+    public void setOutputDirectory(String outputDirectory) {
+        this.outputDirectory = outputDirectory;
     }
-
+    
+    public void setBaseURL(String baseURL) {
+        this.baseURL = baseURL;
+    }
+    
     /**
      * TODO improve doc This process take as input a workspace name and a List of filenames then search some related resources on the catalog...
      * 
@@ -93,6 +100,13 @@ public class DownloadProcess implements GSProcess {
             @DescribeParameter(name = "Ship Detection Layer", min = 1, description = "The layer name of the ship detection") String shipDetectionLayer,
             @DescribeParameter(name = "Granule Names", min = 1, collectionType = String.class, description = "The filenames of the granules") List<String> granuleNames) {
 
+        
+        if(granuleNames.size() == 1){
+            String granules[] = granuleNames.get(0).split(";");
+            granuleNames = Arrays.asList(granules);
+        }
+        
+        
         StringBuilder sb = new StringBuilder();
         sb.append("DownloadProcess started with params [").append("workspace: '").append(workspace)
                 .append("' - ImageMosaicStoreName: '").append(imStoreName)
@@ -222,13 +236,17 @@ public class DownloadProcess implements GSProcess {
         }
     }
 
-    private static String composeUrl(String workspace, String layer, String cqlFilter, String format) {
+    private String composeUrl(String workspace, String layer, String cqlFilter, String format) {
 
-        Request req = Dispatcher.REQUEST.get();
-        String requestURL = req.getHttpRequest().getRequestURL().toString();
-        String requestURLArray[] = requestURL.split("/");
+        String localBaseURL = baseURL;
+        if(StringUtils.isBlank(localBaseURL)){
+            Request req = Dispatcher.REQUEST.get();
+            String requestURL = req.getHttpRequest().getRequestURL().toString();
+            String requestURLArray[] = requestURL.split("/");
+            localBaseURL = "http://" + requestURLArray[2] + "/" + requestURLArray[3];
+        }
         StringBuilder sb = new StringBuilder();
-        sb.append("http://").append(requestURLArray[2]).append("/").append(requestURLArray[3])
+        sb.append(localBaseURL)
                 .append("/").append(workspace)
                 .append("/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=")
                 .append(workspace).append(":").append(layer).append("&outputFormat=")
@@ -280,15 +298,21 @@ public class DownloadProcess implements GSProcess {
         // Example:
         // &CQL_FILTER=time%20IN%20('2010-12-24T09:52:32Z','2010-12-24T22:11:33Z')
         StringBuilder sb = new StringBuilder();
-        sb.append("&CQL_FILTER=time%20IN%20");
-        boolean first = true;
-        char commaORbracket;
-        for (String el : timeList) {
-            commaORbracket = (!first) ? ',' : '(';
-            sb.append(commaORbracket).append("'").append(el).append("'");
+        if(timeList.size()>=1){
+            sb.append("&CQL_FILTER=time%20IN%20");
+            boolean first = true;
+            char commaORbracket;
+            for (String el : timeList) {
+                commaORbracket = (!first) ? ',' : '(';
+                sb.append(commaORbracket).append("'").append(el).append("'");
+            }
+            sb.append(")");
+            LOGGER.info("CQL filter composed");
         }
-        sb.append(")");
-        LOGGER.info("CQL filter composed");
+        else{
+            sb.append("");
+            LOGGER.info("The CQL filter is empty...");
+        }
         return sb.toString();
     }
 

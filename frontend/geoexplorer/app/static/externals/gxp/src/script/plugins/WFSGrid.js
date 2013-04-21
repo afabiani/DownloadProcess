@@ -254,7 +254,7 @@ gxp.plugins.WFSGrid = Ext.extend(gxp.plugins.Tool, {
 			sortable : false, 
 			width: 30,
 			items: [{
-				icon   : this.zoomToIconPath,  
+				iconCls : 'zoomIcon',
 				tooltip: this.zoomToTooltip,
 				scope: this,
 				handler: function(grid, rowIndex, colIndex) {
@@ -276,7 +276,7 @@ gxp.plugins.WFSGrid = Ext.extend(gxp.plugins.Tool, {
 			sortable : false, 
 			width: 10,
 			items: [{
-				icon   : this.addToIconPath,  
+				iconCls: 'addIcon', 
 				tooltip: this.addToDownloadListTooltip,
 				scope: this,
 				handler: function(grid, rowIndex, colIndex) {

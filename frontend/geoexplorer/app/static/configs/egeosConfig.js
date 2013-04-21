@@ -98,15 +98,6 @@
 			"index": 27
 		},
 		{
-			"ptype": "gxp_aoi",
-			"id": "aoi",
-			"outputConfig":{
-				 "outputSRS": "EPSG:4326"
-			},
-			"container":"panel",
-			"outputTarget":"aoi"
-		},
-		{
 			"ptype": "gxp_wfsgrid",
 			"id": "featuregrid",
 			"container": "panel",
@@ -141,12 +132,6 @@
 			]
 		},
 		{
-			"ptype": "gxp_downloadgrid",
-			"id": "downloadgrid",
-			"container": "panel",
-			"outputTarget": "downloadlist"
-		},
-		{
 		   "ptype": "gxp_wpsmanager",
 		   "id": "wpsSPM",
 		   "url": "http://localhost:8080/geoserver/wps",
@@ -154,6 +139,12 @@
 		   "geostoreUser": "admin",
 		   "geostorePassword": "admin",
 		   "geostoreProxy": "/proxy?url="
+		},
+		{
+			"ptype": "gxp_downloadgrid",
+			"id": "downloadgrid",
+			"container": "panel",
+			"outputTarget": "downloadlist"
 		}
 		
 	]

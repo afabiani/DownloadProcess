@@ -39,6 +39,8 @@ gxp.plugins.DownloadList = Ext.extend(gxp.plugins.Tool, {
 	
 	downloadIconPath: "theme/app/img/ext/bottom2.gif",
 	
+	wpsClient: '',
+	
 	/** private: method[constructor]
     */
     constructor: function(config) {
@@ -77,7 +79,7 @@ gxp.plugins.DownloadList = Ext.extend(gxp.plugins.Tool, {
 						xtype:'actioncolumn',
 						width:10,
 						items: [{
-							icon: this.delIconPath,
+							iconCls: 'deleteIcon',
 							tooltip: 'Delete',
 							handler: function(grid, rowIndex, colIndex) {
 								grid.getStore().removeAt(rowIndex);
@@ -100,11 +102,18 @@ gxp.plugins.DownloadList = Ext.extend(gxp.plugins.Tool, {
 					icon: this.downloadIconPath,
 					text: 'Start Download',
 					//ref: '../../downloadButton',
-					handler: function(){
-						
-						
-						
-						
+					scope: this,
+					handler: function() {
+						if(gridPanel.store.getCount() <= 0){
+							alert("Download list is empty");
+						}
+						else{
+							var filenames = new Array();
+							gridPanel.store.each(function(r) {
+							   filenames.push(r.data.filename);
+							})
+							this.fireEvent('startDownload', filenames);
+						}
 					}
 				}]
 			}),
@@ -114,7 +123,6 @@ gxp.plugins.DownloadList = Ext.extend(gxp.plugins.Tool, {
 			iconCls: 'icon-grid'
 			
 		});
-		
 		
 		return gridPanel;
 	}

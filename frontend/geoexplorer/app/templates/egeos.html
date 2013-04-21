@@ -337,29 +337,52 @@
 					var downloadList = app.tools["downloadgrid"];
 					
 					var wpsClient = app.tools["wpsSPM"];
-							
-					var workspace = new OpenLayers.WPSProcess.LiteralData({value:"mariss"});
-					var mosaicStoreName = new OpenLayers.WPSProcess.LiteralData({value:"marissMosaic"});
-					var shipLayerName = new OpenLayers.WPSProcess.LiteralData({value:"tem_sd__1p"});
 					
-					var granule = new OpenLayers.WPSProcess.LiteralData({value:"world2_2012_0001.000.tif"});
-					debugger;
-					wpsClient.execute('gs:Download',{
-					    "storeExecuteResponse": true,
-					    "lineage": true,
-					    "status": true,
-						type: "data",
-						"inputs": {
-							"Workspace": workspace,
-							"ImageMosaic Store Name": mosaicStoreName,
-							"Ship Detection Layer": shipLayerName,
-							"Granule Names": granule
-						},
-						"outputs": [{
-							"identifier": "result",
-							"mimeType" : "application/zip"
-						}]
-					});
+					downloadList.on(
+						'startDownload', function(fileNames){
+							
+							var workspace = new OpenLayers.WPSProcess.LiteralData({value:"mariss"});
+							var mosaicStoreName = new OpenLayers.WPSProcess.LiteralData({value:"marissMosaic"});
+							var shipLayerName = new OpenLayers.WPSProcess.LiteralData({value:"tem_sd__1p"});
+							
+							var fileList = '';
+							function buildString(element, index, array) {
+								fileList += element + ";";
+							}
+							fileNames.forEach(
+								buildString
+							);
+							
+							var granules = new OpenLayers.WPSProcess.LiteralData({value:fileList});
+							
+							// TODO Use complex Data to use a List
+							//"world2_2012_0001.000.tif;world2_2013_0001.000.tif;world2_2014_0001.000.tif"
+							//var granule1 = new OpenLayers.WPSProcess.LiteralData({value:"world2_2012_0001.000.tif"});
+							//var granule2 = new OpenLayers.WPSProcess.LiteralData({value:"world2_2013_0001.000.tif"});
+							//var granule3 = new OpenLayers.WPSProcess.LiteralData({value:"world2_2014_0001.000.tif"});
+							//var granules = [granule1, granule2, granule3];
+							//var complexGranules = new OpenLayers.WPSProcess.ComplexData(granules);
+
+							wpsClient.execute('gs:Download',{
+								"storeExecuteResponse": true,
+								"lineage": true,
+								"status": true,
+								type: "data",
+								"inputs": {
+									"Workspace": workspace,
+									"ImageMosaic Store Name": mosaicStoreName,
+									"Ship Detection Layer": shipLayerName,
+									"Granule Names": granules
+								},
+								"outputs": [{
+									"identifier": "result",
+									"mimeType" : "application/zip"
+								}]
+							});
+						}
+					);
+					
+					//window.setInterval(function(){alert("Hello")},1000);
 					
 					wfsGrid.on(
 						'itemAdded', function(record){

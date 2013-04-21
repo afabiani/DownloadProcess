@@ -420,14 +420,14 @@ var GeoExplorer = Ext.extend(gxp.Viewer, {
 			activeTab:0,
             header: false,
             items: [
-                {
+                /*{
 					region: 'center', 
 					autoScroll: true, 
 					tbar: [], 
 					border: false, 
 					id: 'aoi', 
 					title: 'Spatial Filter'
-				},
+				},*/
 				{
 					region: 'center', 
 					autoScroll: true, 
