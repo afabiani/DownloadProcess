@@ -1,0 +1,7 @@
+build
+geoexplorer.db
+backend/.metadata
+backend/xmlJsonTranslate/target
+backend/xmlJsonTranslate/.classpath
+backend/xmlJsonTranslate/.project
+backend/xmlJsonTranslate/.settings

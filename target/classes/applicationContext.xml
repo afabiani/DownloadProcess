@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+  <!DOCTYPE beans PUBLIC "-//SPRING//DTD BEAN//EN" "http://www.springframework.org/dtd/spring-beans.dtd">
+  <beans>
+    <bean id="downloadProcess" class="it.geosolutions.mariss.wps.gs.DownloadProcess">
+    	<constructor-arg index="0" ref="catalog"/>
+    	<property name="outputDirectory" value="d:/out/" />
+    </bean>
+    <bean id="outputResourcePPIO" class="it.geosolutions.mariss.wps.ppio.OutputResourcesPPIO"/>
+    
+  </beans>
