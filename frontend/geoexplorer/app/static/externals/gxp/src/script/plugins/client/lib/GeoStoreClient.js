@@ -394,18 +394,24 @@ gxp.plugins.GeoStoreClient =  Ext.extend(gxp.plugins.Tool,{
 
         var callSuccess= function(response, opts){
             var jsonResponse= JSON.parse(response.responseText);
-            var entity= null;
+            var entity = [];
           
             if(jsonResponse.ResourceList){
-                if(jsonResponse.ResourceList.Resource instanceof Object){
+                if(jsonResponse.ResourceList.Resource instanceof Array){
                     entity= jsonResponse.ResourceList.Resource;
                 }
+				else{
+					entity = [jsonResponse.ResourceList.Resource];
+				}
             }
             
             if(jsonResponse.UsersList){
-                if(jsonResponse.UsersList.User instanceof Object){
+                if(jsonResponse.UsersList.User instanceof Array){
                     entity= jsonResponse.UsersList.User;
                 }
+				else{
+					entity = [jsonResponse.UsersList.User];
+				}
             }
 
 	  

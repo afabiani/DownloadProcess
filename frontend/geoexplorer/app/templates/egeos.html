@@ -340,9 +340,9 @@
 					
 					downloadList.on(
 						'startDownload', function(fileNames){
-							
+							appMask.show();
 							var workspace = new OpenLayers.WPSProcess.LiteralData({value:"mariss"});
-							var mosaicStoreName = new OpenLayers.WPSProcess.LiteralData({value:"marissMosaic"});
+							var mosaicStoreName = new OpenLayers.WPSProcess.LiteralData({value:"sar-data"});
 							var shipLayerName = new OpenLayers.WPSProcess.LiteralData({value:"tem_sd__1p"});
 							
 							var fileList = '';
@@ -363,7 +363,7 @@
 							//var granules = [granule1, granule2, granule3];
 							//var complexGranules = new OpenLayers.WPSProcess.ComplexData(granules);
 
-							wpsClient.execute('gs:Download',{
+							var instanceID = wpsClient.execute('gs:Download',{
 								"storeExecuteResponse": true,
 								"lineage": true,
 								"status": true,
@@ -376,9 +376,50 @@
 								},
 								"outputs": [{
 									"identifier": "result",
-									"mimeType" : "application/zip"
+									"mimeType" : "application/zip",
+									"asReference": true
 								}]
-							});
+							},function(){});
+							
+							var linkReceived = false;
+							
+							var updateFun = function() {
+								wpsClient.getExecuteInstances('gs:Download',true,function(instance, statusInfo){
+									if(!linkReceived) {
+										if(statusInfo && statusInfo.status === 'Process Succeeded') {
+											linkReceived = true;
+											Ext.Ajax.request({
+												url: statusInfo.statusLocation,
+												method: 'GET',
+												success: function(response){
+													var link = response.responseXML.getElementsByTagName('Reference')[0].getAttribute('href');
+													appMask.hide();
+													Ext.Msg.show({
+													   title:'Download',
+													   msg: 'Click <a href="' + link + '">HERE</a> to start the Download.<br /><br /> The full URL is: ' + link,
+													   buttons: Ext.Msg.OK,
+													   fn: function(btn, text) {},
+													   icon: Ext.MessageBox.INFO
+													});
+													//Ext.Msg.alert('Success', 'The download URL is: ' + link);
+													
+													wpsClient.deleteExecuteInstance(instance.id, function() {});
+												},
+												failure: function(response){
+													appMask.hide();
+													Ext.Msg.alert('Error','An error occur when try to get the URL of the requested resource. Please try again.');
+													wpsClient.deleteExecuteInstance(instance.id, function() {});
+												}
+											});
+										} else {
+											//if(statusInfo && (statusInfo.status == "Process Started" || statusInfo.status == "Process Accepted" || statusInfo.status == "Process Paused")){
+											updateFun();
+											//}
+										}
+									}
+								});
+							};
+							updateFun();
 						}
 					);
 					
@@ -389,7 +430,7 @@
 							var n = record.id.split(".");
 							var index = parseInt(n[n.length-1]);
 							if(!(downloadList.grid.store.getById(index) === undefined)){
-								alert('this AOI is already added to download list');
+								Ext.Msg.alert('Status', 'this AOI is already added to download list.');
 								return;
 							}
 							var el = {
@@ -397,11 +438,15 @@
 							}
 							var newRecord = new downloadList.grid.store.recordType(el, index);
 							downloadList.grid.store.add(newRecord);
-					});
+					});	
 					
 					wfsGrid.store.on(
 						'beforeload', function(store,options){
+							
 							//store.setBaseParam( 'TIME', '2010-12-24T09:00:00.000Z/2010-12-24T09:01:00.000Z');
+							if(timeFilter === undefined){
+								timeFilter = 'time DURING 1900-12-24T17:00:00.000Z/1900-12-24T17:30:00.000Z'
+							}
 							options.params['CQL_FILTER'] = timeFilter;
 							//store.setBaseParam( 'CQL_FILTER', timeFilter /*'time DURING 2010-12-24T17:00:00.000Z/2010-12-24T17:30:00.000Z'*/);
 							//store.setBaseParam( 'CQL_FILTER', 'time%20DURING%202010-12-24T04%3A52%3A32%20%2F%202010-12-24T17%3A29%3A26');		
@@ -414,8 +459,7 @@
 							playback.playbackToolbar.slider.on({
 								'dragend': function(slider, e){
 									var test = slider;
-									//debugger;
-									timeFilter = buildTimeIntervalFilter(playback.timeManager);
+									timeFilter = buildTimeIntervalFilter(playback.playbackToolbar.slider);
 									wfsGrid.store.reload();
 								}
 							});
@@ -435,10 +479,13 @@
             });
       };
 		
-	  function buildTimeIntervalFilter(timeManager){
-		var dateMin = new Date(timeManager.range[0]);
-		var dateMax = new Date(timeManager.currentTime);
-		//debugger;
+	  function buildTimeIntervalFilter(slider){
+		var minTimestamp = slider.getValues()[1];
+		var maxTimestamp = slider.getValues()[0];
+		var dateMin = new Date();
+		var dateMax = new Date();
+		dateMin.setTime(minTimestamp);
+		dateMax.setTime(maxTimestamp);
 		return "time DURING " + dateMin.toISOString() +"/"+ dateMax.toISOString();
 	  }
 

@@ -38,7 +38,7 @@
             "ptype": "gxp_wmssource",
             "title": "MARISS", 
             "version": "1.1.1",
-            "url": "http://localhost:8080/geoserver/mariss/ows",
+            "url": "http://84.33.2.25/geoserver/mariss/ows",
 			"layerBaseParams": {
 				"TILED": true,
 				"TILESORIGIN": "-180,-90" 
@@ -134,11 +134,12 @@
 		{
 		   "ptype": "gxp_wpsmanager",
 		   "id": "wpsSPM",
-		   "url": "http://localhost:8080/geoserver/wps",
-		   "geostoreUrl": "http://localhost:8082/geostore/rest",
+		   "url": "http://84.33.2.25/geoserver/wps",
+		   "geostoreUrl": "http://84.33.2.25/geostore/rest",
 		   "geostoreUser": "admin",
 		   "geostorePassword": "admin",
-		   "geostoreProxy": "/proxy?url="
+		   "geostoreProxy": "/proxy?url=",
+		   "target": ""
 		},
 		{
 			"ptype": "gxp_downloadgrid",

@@ -74,10 +74,10 @@ gxp.plugins.DownloadList = Ext.extend(gxp.plugins.Tool, {
 			colModel: new Ext.grid.ColumnModel({
 				
 				columns: [
-					{id: 'filename', header: 'filename', width: 10, sortable: true},
+					{id: 'filename', header: 'filename', width: 375, sortable: true},
 					{
 						xtype:'actioncolumn',
-						width:10,
+						width: 50,
 						items: [{
 							iconCls: 'deleteIcon',
 							tooltip: 'Delete',
@@ -94,9 +94,6 @@ gxp.plugins.DownloadList = Ext.extend(gxp.plugins.Tool, {
 				forceFit: true
 			},
 			tbar: new Ext.Toolbar({
-				//renderTo: document.body,
-				//width: 600,
-				//height: 100,
 				items: [
 				{
 					icon: this.downloadIconPath,
@@ -105,7 +102,7 @@ gxp.plugins.DownloadList = Ext.extend(gxp.plugins.Tool, {
 					scope: this,
 					handler: function() {
 						if(gridPanel.store.getCount() <= 0){
-							alert("Download list is empty");
+							Ext.Msg.alert('Error', 'Download list is empty');
 						}
 						else{
 							var filenames = new Array();
@@ -118,7 +115,7 @@ gxp.plugins.DownloadList = Ext.extend(gxp.plugins.Tool, {
 				}]
 			}),
 			sm: new Ext.grid.RowSelectionModel({singleSelect:true}),
-			width: 400,
+			width: 450,
 			height: 300,
 			iconCls: 'icon-grid'
 			
