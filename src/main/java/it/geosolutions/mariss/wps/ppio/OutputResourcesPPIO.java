@@ -91,7 +91,7 @@ public class OutputResourcesPPIO extends BinaryPPIO {
             while (iter2.hasNext()) {
 
                 File tmp = iter2.next();
-                if (!tmp.exists() || !tmp.canRead() || !tmp.canWrite()) {
+                if (!tmp.exists() || !tmp.canRead()) {
                     LOGGER.warning("Skip Undeletable file '" + tmp.getName()
                             + "' some problems occurred...");
                     continue;

@@ -28,9 +28,14 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.text.DateFormat;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.UUID;
 import java.util.logging.Logger;
@@ -49,12 +54,14 @@ import org.geoserver.catalog.CoverageStoreInfo;
 import org.geoserver.catalog.WorkspaceInfo;
 import org.geoserver.ows.Dispatcher;
 import org.geoserver.ows.Request;
+import org.geotools.gce.imagemosaic.properties.time.TimeParser;
 import org.geotools.process.ProcessException;
 import org.geotools.process.factory.DescribeParameter;
 import org.geotools.process.factory.DescribeProcess;
 import org.geotools.process.factory.DescribeResult;
 import org.geotools.process.gs.GSProcess;
 import org.geotools.util.logging.Logging;
+import org.opengis.geometry.BoundingBox;
 
 /**
  * @author DamianoG
@@ -70,6 +77,8 @@ public class DownloadProcess implements GSProcess {
     private String baseURL;
 
     private Catalog catalog;
+    
+    private static String geomName;
 
     public DownloadProcess(Catalog catalog) {
         this.catalog = catalog;
@@ -86,6 +95,10 @@ public class DownloadProcess implements GSProcess {
         this.baseURL = baseURL;
     }
     
+    public void setGeomName(String geomName){
+        this.geomName = geomName;
+    }
+    
     /**
      * TODO improve doc This process take as input a workspace name and a List of filenames then search some related resources on the catalog...
      * 
@@ -95,6 +108,8 @@ public class DownloadProcess implements GSProcess {
      */
     @DescribeResult(name = "ResourcesList", description = "A list of File pointer to the resources found and created")
     public OutputResource execute(
+            @DescribeParameter(name = "MinTime", min = 0, description = "The start time of the Interval") String minTime,
+            @DescribeParameter(name = "MaxTime", min = 0, description = "The end time of the Interval") String maxTime,
             @DescribeParameter(name = "Workspace", min = 0, description = "Target workspace (default is the system default)") String workspace,
             @DescribeParameter(name = "ImageMosaic Store Name", min = 1, description = "The Image mosaic store name ") String imStoreName,
             @DescribeParameter(name = "Ship Detection Layer", min = 1, description = "The layer name of the ship detection") String shipDetectionLayer,
@@ -180,20 +195,20 @@ public class DownloadProcess implements GSProcess {
         }
         LOGGER.info("Added " + counter + " raster resources to resources Map.");
 
-        String cqlFilter = buildCQLFilter(timeList);
+        String cqlFilter = buildCQLFilterMinMaxIntervalAndFranulesBBox(minTime, maxTime, mosaicDir, granuleNames);
 
         SimpleHttpConnectionManager httpConnectionManager = new SimpleHttpConnectionManager();
         
         // Create the Shapefile with the selected features
         File fZip = new File(outputDirectory + shipDetectionLayer + UUID.randomUUID() + ".zip");
-        String urlZip = composeUrl(ws.getName(), shipDetectionLayer, cqlFilter, "shape-zip");
+        String urlZip = composeWFSUrl(ws.getName(), shipDetectionLayer, cqlFilter, "shape-zip");
         downloadVectorDataFromLocalhost(urlZip, fZip, httpConnectionManager);
         outputResources.addDeletableResource(fZip);
         LOGGER.info("Added The shapefile to resources Map.");
 
         // Create the KMZ with the selected features
         File fKMZ = new File(outputDirectory + shipDetectionLayer + UUID.randomUUID() + ".kmz");
-        String urlKMZ = composeUrl(ws.getName(), shipDetectionLayer, cqlFilter, "kmz");
+        String urlKMZ = composeWMSUrl(ws.getName(), shipDetectionLayer, cqlFilter, "kml");
         downloadVectorDataFromLocalhost(urlKMZ, fKMZ, httpConnectionManager);
         outputResources.addDeletableResource(fKMZ);
         LOGGER.info("Added the KMZ to resources Map.");
@@ -236,7 +251,7 @@ public class DownloadProcess implements GSProcess {
         }
     }
 
-    private String composeUrl(String workspace, String layer, String cqlFilter, String format) {
+    private String composeWFSUrl(String workspace, String layer, String cqlFilter, String format) {
 
         String localBaseURL = baseURL;
         if(StringUtils.isBlank(localBaseURL)){
@@ -251,6 +266,28 @@ public class DownloadProcess implements GSProcess {
                 .append("/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=")
                 .append(workspace).append(":").append(layer).append("&outputFormat=")
                 .append(format).append(cqlFilter);
+
+        String url = sb.toString();
+        LOGGER.info("URL for download the '" + format + "' file composed");
+        LOGGER.fine("The URL is " + url);
+        return url;
+    }
+    
+    private String composeWMSUrl(String workspace, String layer, String cqlFilter, String format) {
+
+        String localBaseURL = baseURL;
+        if(StringUtils.isBlank(localBaseURL)){
+            Request req = Dispatcher.REQUEST.get();
+            String requestURL = req.getHttpRequest().getRequestURL().toString();
+            String requestURLArray[] = requestURL.split("/");
+            localBaseURL = "http://" + requestURLArray[2] + "/" + requestURLArray[3];
+        }
+        // http://localhost:8080/geoserver/mariss/wms/kml?layers=mariss:tem_sd__1p
+        StringBuilder sb = new StringBuilder();
+        sb.append(localBaseURL)
+                .append("/").append(workspace)
+                .append("/wms/").append(format).append("?layers=")
+                .append(workspace).append(":").append(layer).append(cqlFilter);
 
         String url = sb.toString();
         LOGGER.info("URL for download the '" + format + "' file composed");
@@ -292,27 +329,101 @@ public class DownloadProcess implements GSProcess {
         LOGGER.info("Vector Resource downloaded");
         return true;
     }
+    
+    public static String buildCQLFilterMinMaxIntervalAndFranulesBBox(/*List<String> timeList, */String minTime, String maxTime, File mosaicDir, List<String> granulesFileNames) {
 
-    public static String buildCQLFilter(List<String> timeList) {
-
-        // Example:
-        // &CQL_FILTER=time%20IN%20('2010-12-24T09:52:32Z','2010-12-24T22:11:33Z')
+        /*
+         * EXAMPLE:
+         * time DURING 2010-01-24T09:52:32Z/2012-02-24T22:11:33Z AND (BBOX(wkb_geometry,9.887190592840616,37.981477602075785,10.310190592840616,38.38117760207579) OR BBOX(wkb_geometry,18.716863606878906,39.50822439921374,19.130563606878905,39.899624399213735))
+         */
+        
+        GranulesManager gm = new GranulesManager(mosaicDir);
+        Map<String,BoundingBox> bboxMap = gm.searchBoundingBoxes(granulesFileNames);
+        
+//        TimeParser p = new TimeParser();
+//        Date min = null;
+//        Date max = null;
+//        boolean firstIter = true;
+//        for(String el : timeList){
+//            try {
+//                Date tmpDate = p.parse(el).get(0);
+//                if(firstIter){
+//                    min = tmpDate;
+//                    max = tmpDate;
+//                    firstIter=false;
+//                }
+//                else{
+//                    min = (tmpDate.before(min))?tmpDate:min;
+//                    max = (tmpDate.after(max))?tmpDate:max;
+//                }
+//            } catch (ParseException e) {
+//                LOGGER.severe(e.getMessage());
+//            }
+//        }
+//        if(min.equals(max)){
+//            Calendar cla = new GregorianCalendar();
+//            cla.setTime(min);
+//            cla.add(Calendar.DAY_OF_MONTH, -1);
+//            min = cla.getTime();
+//        }
+        TimeParser p = new TimeParser();
         StringBuilder sb = new StringBuilder();
-        if(timeList.size()>=1){
-            sb.append("&CQL_FILTER=time%20IN%20");
-            boolean first = true;
-            char commaORbracket;
-            for (String el : timeList) {
-                commaORbracket = (!first) ? ',' : '(';
-                sb.append(commaORbracket).append("'").append(el).append("'");
+        DateFormat formatter = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
+        Date min = null;
+        Date max = null;
+        try {
+            min = p.parse(minTime).get(0);
+            max = p.parse(maxTime).get(0);
+        } catch (ParseException e) {
+            // TODO Auto-generated catch block
+            LOGGER.severe(e.getMessage());
+        }
+        sb.append("&CQL_FILTER=");
+        if(min != null && max != null){
+            sb.append("time%20DURING%20");
+            sb.append(formatter.format(min));
+            sb.append("/");
+            sb.append(formatter.format(max));
+            LOGGER.info("Time Interval added to CQL filter");
+            if(!bboxMap.isEmpty()){
+                sb.append("%20AND%20(");
+                boolean first = true;
+                for(String el : bboxMap.keySet()){
+                    if(!first){
+                        sb.append("%20OR%20");
+                    }
+                    first = false;
+                    sb.append(buildCqlBBOXFilter(bboxMap.get(el)));
+                }
+                LOGGER.info("BBOX filters added to CQL filter");
+                sb.append(")");
             }
-            sb.append(")");
-            LOGGER.info("CQL filter composed");
+            
         }
         else{
             sb.append("");
             LOGGER.info("The CQL filter is empty...");
         }
+        String cqlFilter = sb.toString();
+        LOGGER.fine("The full CQL filter is " + cqlFilter);
+        return cqlFilter;
+    }
+    
+    
+    private static String buildCqlBBOXFilter(BoundingBox bbox){
+      //BBOX(wkb_geometry,9.887190592840616,37.981477602075785,10.310190592840616,38.38117760207579)
+        StringBuilder sb = new StringBuilder();
+        sb.append("BBOX(");
+        sb.append(geomName);
+        sb.append(",");
+        sb.append(bbox.getMinX());
+        sb.append(",");
+        sb.append(bbox.getMinY());
+        sb.append(",");
+        sb.append(bbox.getMaxX());
+        sb.append(",");
+        sb.append(bbox.getMaxY());
+        sb.append(")");
         return sb.toString();
     }
 

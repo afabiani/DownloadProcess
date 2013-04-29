@@ -4,7 +4,9 @@
     <bean id="downloadProcess" class="it.geosolutions.mariss.wps.gs.DownloadProcess">
     	<constructor-arg index="0" ref="catalog"/>
     	<property name="outputDirectory" value="/opt/gs_ext_data/tmpDownload" />
+    	<!-- <property name="outputDirectory" value="d:\out\" />  --> 
     	<property name="baseURL" value="http://84.33.2.25/geoserver" />
+    	<property name="geomName" value="wkb_geometry" />
     </bean>
     <bean id="outputResourcePPIO" class="it.geosolutions.mariss.wps.ppio.OutputResourcesPPIO"/>
     
