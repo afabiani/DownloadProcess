@@ -2,6 +2,7 @@
     <link rel="stylesheet" type="text/css" href="externals/openlayers/theme/default/style.css">
 
     <!-- GeoExt resources -->
+	
     <link rel="stylesheet" type="text/css" href="externals/GeoExt/resources/css/popup.css">
     <link rel="stylesheet" type="text/css" href="externals/GeoExt/resources/css/layerlegend.css">
     <link rel="stylesheet" type="text/css" href="externals/GeoExt/resources/css/gxtheme-gray.css">
@@ -184,7 +185,7 @@
             }
 			
 			if (!vehicles){
-				vehicles = serverConfig.vehicles
+				vehicles = serverConfig.vehicles;
 			}
 
             OpenLayers.ImgPath = "externals/openlayers/theme/default/img/";
@@ -306,8 +307,6 @@
                         maxExtent[2], maxExtent[3]
                     ],
                     layers: serverConfig.layers
-                    // center: [center[0], center[1]],
-                    // zoom: zoom
                 }
             }, mapIdentifier, authorization, fullScreen);   
             
@@ -348,13 +347,16 @@
 							var fileList = '';
 							function buildString(element, index, array) {
 								fileList += element + ";";
-							}
+							};
 							fileNames.forEach(
 								buildString
 							);
 							
 							var granules = new OpenLayers.WPSProcess.LiteralData({value:fileList});
-							
+							var minTime = getMinTime(playback);
+							var maxTime = getMaxTime(playback);
+							var minTimeDTO = new OpenLayers.WPSProcess.LiteralData({value:minTime});
+							var maxTimeDTO = new OpenLayers.WPSProcess.LiteralData({value:maxTime});
 							// TODO Use complex Data to use a List
 							//"world2_2012_0001.000.tif;world2_2013_0001.000.tif;world2_2014_0001.000.tif"
 							//var granule1 = new OpenLayers.WPSProcess.LiteralData({value:"world2_2012_0001.000.tif"});
@@ -363,12 +365,15 @@
 							//var granules = [granule1, granule2, granule3];
 							//var complexGranules = new OpenLayers.WPSProcess.ComplexData(granules);
 
+							var entity;
 							var instanceID = wpsClient.execute('gs:Download',{
 								"storeExecuteResponse": true,
 								"lineage": true,
 								"status": true,
 								type: "data",
 								"inputs": {
+									"MinTime": minTimeDTO,
+									"MaxTime": maxTimeDTO,
 									"Workspace": workspace,
 									"ImageMosaic Store Name": mosaicStoreName,
 									"Ship Detection Layer": shipLayerName,
@@ -382,55 +387,77 @@
 							},function(){});
 							
 							var linkReceived = false;
-							
 							var updateFun = function() {
 								wpsClient.getExecuteInstances('gs:Download',true,function(instance, statusInfo){
 									if(!linkReceived) {
-										if(statusInfo && statusInfo.status === 'Process Succeeded') {
+										if(statusInfo && statusInfo.status === 'Process Succeeded' && instance.name === instanceID) {
 											linkReceived = true;
+											clearInterval(interval);
 											Ext.Ajax.request({
 												url: statusInfo.statusLocation,
 												method: 'GET',
 												success: function(response){
-													var link = response.responseXML.getElementsByTagName('Reference')[0].getAttribute('href');
-													appMask.hide();
-													Ext.Msg.show({
-													   title:'Download',
-													   msg: 'Click <a href="' + link + '">HERE</a> to start the Download.<br /><br /> The full URL is: ' + link,
-													   buttons: Ext.Msg.OK,
-													   fn: function(btn, text) {},
-													   icon: Ext.MessageBox.INFO
-													});
-													//Ext.Msg.alert('Success', 'The download URL is: ' + link);
-													
-													wpsClient.deleteExecuteInstance(instance.id, function() {});
+													var format = new OpenLayers.Format.XML(); 
+													var link;
+													try{
+														if(Ext.isIE){
+															var elements = format.getElementsByTagNameNS(response.responseXML,'http://www.opengis.net/wps/1.0.0','*');
+															var findReference = function(element, index, array){
+																if(element.baseName == "Reference"){
+																	link = element.getAttribute("href");
+																}
+															};
+															elements.forEach(
+																findReference
+															);
+														}
+														else{
+															link = format.getElementsByTagNameNS(response.responseXML,'http://www.opengis.net/wps/1.0.0','Reference')[0].getAttribute("href");
+														}
+													}
+													catch(err){
+													}
+													if(!link){
+														wpsClient.deleteExecuteInstance(instance.id, function() {});
+														appMask.hide();
+														Ext.Msg.alert('Error','An error occurs when try to parse the result document. Please try again.');											
+													}
+													else{
+														wpsClient.deleteExecuteInstance(instance.id, function(){});
+														appMask.hide();
+														window.open(link,'_self');
+														Ext.Msg.show({
+														   title:'Download',
+														   msg: 'Click <a href=\"' + link + '\">HERE</a> if the download don\'t start automatically',
+														   buttons: Ext.Msg.OK,
+														   fn: function(btn, text) {
+																
+														   },
+														   icon: Ext.MessageBox.INFO
+														});
+													}
 												},
 												failure: function(response){
+													wpsClient.deleteExecuteInstance(instance.id, function() {});
 													appMask.hide();
 													Ext.Msg.alert('Error','An error occur when try to get the URL of the requested resource. Please try again.');
-													wpsClient.deleteExecuteInstance(instance.id, function() {});
 												}
 											});
-										} else {
-											//if(statusInfo && (statusInfo.status == "Process Started" || statusInfo.status == "Process Accepted" || statusInfo.status == "Process Paused")){
-											updateFun();
-											//}
 										}
 									}
 								});
 							};
-							updateFun();
+							
+							var interval = setInterval(updateFun,3000);
 						}
 					);
-					
-					//window.setInterval(function(){alert("Hello")},1000);
 					
 					wfsGrid.on(
 						'itemAdded', function(record){
 							var n = record.id.split(".");
 							var index = parseInt(n[n.length-1]);
 							if(!(downloadList.grid.store.getById(index) === undefined)){
-								Ext.Msg.alert('Status', 'this AOI is already added to download list.');
+								Ext.Msg.alert('Status', 'this AOI has been already added to the download list.');
 								return;
 							}
 							var el = {
@@ -438,40 +465,56 @@
 							}
 							var newRecord = new downloadList.grid.store.recordType(el, index);
 							downloadList.grid.store.add(newRecord);
+							//app.portalItems[0].items[2].expand(true);
 					});	
 					
 					wfsGrid.store.on(
 						'beforeload', function(store,options){
 							
-							//store.setBaseParam( 'TIME', '2010-12-24T09:00:00.000Z/2010-12-24T09:01:00.000Z');
 							if(timeFilter === undefined){
-								timeFilter = 'time DURING 1900-12-24T17:00:00.000Z/1900-12-24T17:30:00.000Z'
+								timeFilter = 'time DURING 1900-12-24T17:00:00.000Z/1900-12-24T17:30:00.000Z';
 							}
 							options.params['CQL_FILTER'] = timeFilter;
-							//store.setBaseParam( 'CQL_FILTER', timeFilter /*'time DURING 2010-12-24T17:00:00.000Z/2010-12-24T17:30:00.000Z'*/);
-							//store.setBaseParam( 'CQL_FILTER', 'time%20DURING%202010-12-24T04%3A52%3A32%20%2F%202010-12-24T17%3A29%3A26');		
 					});
 					
 					wfsGrid.store.reload();
 					
 					playback.on({
 						'rangemodified': function(e){
-							playback.playbackToolbar.slider.on({
-								'dragend': function(slider, e){
-									var test = slider;
+							
+							var handleTimeChange = function(slider, e){
+								var test = slider;
 									timeFilter = buildTimeIntervalFilter(playback.playbackToolbar.slider);
 									wfsGrid.store.reload();
+									
+									//remove the selected layers
+									var targetLayer = app.mapPanel.map.getLayersByName("selectedFeature")[0];
+									if(targetLayer){
+										app.mapPanel.map.removeLayer(targetLayer);
+									}
+									wfsGrid.grid.getSelectionModel().clearSelections();
+									downloadList.grid.getStore().removeAll();
+							};
+							
+							playback.playbackToolbar.slider.on({
+								'dragend': function(slider, e){
+									handleTimeChange(slider, e);
 								}
 							});
 							
 							playback.playbackToolbar.on({
 								'next': function(slider){
-									var test = slider;
+									handleTimeChange(slider);
 								},
 								
 								'back': function(slider){
-									var test = slider;
+									handleTimeChange(slider);
+								},
+								
+								'play': function(slider){
+									handleTimeChange(slider);
 								}
+								
 							});
 						}
 					});
@@ -488,8 +531,21 @@
 		dateMax.setTime(maxTimestamp);
 		return "time DURING " + dateMin.toISOString() +"/"+ dateMax.toISOString();
 	  }
-
-	
+	  
+	  function getMinTime(playback){
+		var minTimestamp = playback.playbackToolbar.slider.getValues()[1];
+		var dateMin = new Date();
+		dateMin.setTime(minTimestamp);
+		return dateMin.toISOString();
+	  }
+	  
+	  function getMaxTime(playback){
+		var maxTimestamp = playback.playbackToolbar.slider.getValues()[0];
+		var dateMax = new Date();
+		dateMax.setTime(maxTimestamp);
+		return dateMax.toISOString();
+	  }
+	  
       var cfgFile = "configs/egeosConfig.js";
       Ext.Ajax.request({
           url: cfgFile,

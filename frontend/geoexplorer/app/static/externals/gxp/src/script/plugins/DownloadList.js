@@ -67,25 +67,24 @@ gxp.plugins.DownloadList = Ext.extend(gxp.plugins.Tool, {
 		
 			id: this.id,
 			store: storeEx,
-
+			layout:'anchor',
 			loadMask: {
 				msg : 'Loading...'
 			},
 			colModel: new Ext.grid.ColumnModel({
 				
 				columns: [
-					{id: 'filename', header: 'filename', width: 375, sortable: true},
+					{id: 'filename', header: 'filename', width: 85, sortable: true},
 					{
 						xtype:'actioncolumn',
-						width: 50,
+						width: 15,
 						items: [{
 							iconCls: 'deleteIcon',
 							tooltip: 'Delete',
 							handler: function(grid, rowIndex, colIndex) {
 								grid.getStore().removeAt(rowIndex);
 							}
-						}
-						]
+						}]
 					}
 					
 				]
@@ -98,7 +97,6 @@ gxp.plugins.DownloadList = Ext.extend(gxp.plugins.Tool, {
 				{
 					icon: this.downloadIconPath,
 					text: 'Start Download',
-					//ref: '../../downloadButton',
 					scope: this,
 					handler: function() {
 						if(gridPanel.store.getCount() <= 0){
@@ -112,7 +110,16 @@ gxp.plugins.DownloadList = Ext.extend(gxp.plugins.Tool, {
 							this.fireEvent('startDownload', filenames);
 						}
 					}
-				}]
+				},
+				{
+					icon: this.delIconPath,
+					text: 'Clear List',
+					scope: this,
+					handler: function() {
+						gridPanel.getStore().removeAll();
+					}
+				}
+				]
 			}),
 			sm: new Ext.grid.RowSelectionModel({singleSelect:true}),
 			width: 450,

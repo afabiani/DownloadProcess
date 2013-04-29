@@ -105,10 +105,9 @@ gxp.plugins.WFSGrid = Ext.extend(gxp.plugins.Tool, {
 			targetLayer = new OpenLayers.Layer.Vector("selectedFeature",{
 				displayInLayerSwitcher: false,
 				style: {
-					strokeColor: "#FF00FF",
+					strokeColor: "#FFFF00",
 					strokeWidth: 2,
-					fillColor: "#FF00FF",
-					fillOpacity: 0.8
+					fillOpacity: 0
 				}
 			});
 			
@@ -126,8 +125,10 @@ gxp.plugins.WFSGrid = Ext.extend(gxp.plugins.Tool, {
 	onTargetDeselect: function (selMod, rowIndex, record){
 		var map = this.target.mapPanel.map;
 		var targetLayer = map.getLayersByName("selectedFeature")[0];
-		var unSelectFeatures= targetLayer.getFeaturesByAttribute("featureID", record.id);
-		targetLayer.removeFeatures(unSelectFeatures);
+		if(targetLayer){
+			var unSelectFeatures= targetLayer.getFeaturesByAttribute("featureID", record.id);
+			targetLayer.removeFeatures(unSelectFeatures);
+		}
 	},
 	
 	getGeometry: function(map, geom) {
@@ -223,10 +224,6 @@ gxp.plugins.WFSGrid = Ext.extend(gxp.plugins.Tool, {
 		// build store
 		this.store = this.buildStore();
 		
-		/*this.store.on('load', function(store, records){
-			debugger;
-		});*/
-		
 		// build grid
 		this.grid = this.buildGrid(this.store);
 		
@@ -260,7 +257,7 @@ gxp.plugins.WFSGrid = Ext.extend(gxp.plugins.Tool, {
 				handler: function(grid, rowIndex, colIndex) {
 					var record = grid.store.getAt(rowIndex);
 					var map = this.target.mapPanel.map;
-					var geometry = this.getGeometry(map, record.get("geometry"))
+					var geometry = this.getGeometry(map, record.get("geometry"));
 					map.zoomToExtent(geometry.getBounds());															
 				}
 			}]  
