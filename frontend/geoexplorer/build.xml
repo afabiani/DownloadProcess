@@ -13,18 +13,9 @@
         <os family="windows"/>
     </condition>
 
-    <target name="init">
+	<target name="init">
 
-        <echo message="pulling in submodules"/>
-        <exec executable="${git}" failonerror="true">
-            <arg line="submodule init"/>
-        </exec>
-        <exec executable="${git}" failonerror="true">
-            <arg line="submodule sync"/>
-        </exec>
-        <exec executable="${git}" failonerror="true">
-            <arg line="submodule update"/>
-        </exec>
+     
 
         <echo message="building ringo jars"/>
         <ant dir="${ringo}" target="jar"/>
@@ -33,6 +24,7 @@
         </copy>
 
     </target>
+    
     
     <target name="buildjs">
 
