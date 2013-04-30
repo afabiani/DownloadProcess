@@ -66,6 +66,8 @@ gxp.plugins.WFSGrid = Ext.extend(gxp.plugins.Tool, {
     
 	addToDownloadListTooltip: 'Add to download List',
 	
+	zoomToTimeTooltip: 'Show the map only at this time',
+	
 	projection: "",
 	
     /** private: method[constructor]
@@ -204,7 +206,7 @@ gxp.plugins.WFSGrid = Ext.extend(gxp.plugins.Tool, {
 				msg : "Please wait, loading..."
 			},
 			colModel: new Ext.grid.ColumnModel({
-				columns: [checkSelModel,this.getZoomToAction()].concat(this.columnModel).concat(this.addToDownloadChart())
+				columns: [checkSelModel,this.getZoomToAction(),this.zoomToTime()].concat(this.columnModel).concat(this.addToDownloadChart())
 			}),
 			viewConfig : {
 				forceFit: true
@@ -249,7 +251,7 @@ gxp.plugins.WFSGrid = Ext.extend(gxp.plugins.Tool, {
         return {
 			xtype: 'actioncolumn',
 			sortable : false, 
-			width: 30,
+			width: 10,
 			items: [{
 				iconCls : 'zoomIcon',
 				tooltip: this.zoomToTooltip,
@@ -279,6 +281,26 @@ gxp.plugins.WFSGrid = Ext.extend(gxp.plugins.Tool, {
 				handler: function(grid, rowIndex, colIndex) {
 					var record = grid.store.getAt(rowIndex);
 					this.fireEvent('itemAdded', record);
+				}
+			}]  
+		 };
+    },
+	
+	/** private: method[getZoomToAction]
+     */
+    zoomToTime: function(actionConf){
+        
+        return {
+			xtype: 'actioncolumn',
+			sortable : false, 
+			width: 10,
+			items: [{
+				iconCls: 'timeIcon', 
+				tooltip: this.zoomToTimeTooltip,
+				scope: this,
+				handler: function(grid, rowIndex, colIndex) {
+					var record = grid.store.getAt(rowIndex);
+					this.fireEvent('zoomToTime', record);
 				}
 			}]  
 		 };

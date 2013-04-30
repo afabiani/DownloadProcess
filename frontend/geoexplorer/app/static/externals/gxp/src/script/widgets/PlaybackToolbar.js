@@ -146,7 +146,9 @@ gxp.PlaybackToolbar = Ext.extend(Ext.Toolbar, {
 
 			"next",
 
-            "back"            
+            "back",
+
+			"play"
         );
         gxp.PlaybackToolbar.superclass.initComponent.call(this);  
 
@@ -270,7 +272,7 @@ gxp.PlaybackToolbar = Ext.extend(Ext.Toolbar, {
                 scope: this.control,
                 tooltip: this.resetTooltip,
                 menuText: this.resetLabel,
-                text: (this.labelButtons) ? this.resetLabel : false
+                text: (this.labelButtons) ? this.resetLabel : false,
             },            
             'pause': {
                 iconCls: 'gxp-icon-pause',
