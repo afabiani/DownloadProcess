@@ -79,8 +79,8 @@ gxp.PlaybackToolbar = Ext.extend(Ext.Toolbar, {
     backTooltip:'Draw back One Frame',    
     nextLabel:'Next',
     nextTooltip:'Advance One Frame',
-    resetLabel:'Whole Range',
-    resetTooltip:'Visualize the whole time interval',
+    resetLabel:'Full Range',
+    resetTooltip:'Full Range',
     loopLabel:'Loop',
     normalLabel:'Loop',
     loopTooltip:'Continously loop the animation',
@@ -148,9 +148,7 @@ gxp.PlaybackToolbar = Ext.extend(Ext.Toolbar, {
 
             "back"            
         );
-        gxp.PlaybackToolbar.superclass.initComponent.call(this);   
-     
-	
+        gxp.PlaybackToolbar.superclass.initComponent.call(this);  
 
     },
     /** private: method[destroy]
@@ -468,6 +466,8 @@ gxp.PlaybackToolbar = Ext.extend(Ext.Toolbar, {
     },
     toggleAnimation:function(btn,pressed){
         
+		this.fireEvent('play');//MARIS
+		
         if(!btn.bound && pressed){
             this.control.events.on({
                 'stop':function(evt){

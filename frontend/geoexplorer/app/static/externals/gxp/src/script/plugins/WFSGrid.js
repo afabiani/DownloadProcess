@@ -201,7 +201,7 @@ gxp.plugins.WFSGrid = Ext.extend(gxp.plugins.Tool, {
 			store: store,
 
 			loadMask: {
-				msg : "Caricamento in corso ..."
+				msg : "Please wait, loading..."
 			},
 			colModel: new Ext.grid.ColumnModel({
 				columns: [checkSelModel,this.getZoomToAction()].concat(this.columnModel).concat(this.addToDownloadChart())

@@ -279,7 +279,7 @@
                 defaultSourceType: "gxp_wmssource",
                 renderToTab : 'appTabs',
 				// Time Animator //
-                 timeUnits: serverConfig.timeUnits ? serverConfig.timeUnits : OpenLayers.TimeUnit.MINUTES, //
+                timeUnits: serverConfig.timeUnits ? serverConfig.timeUnits : OpenLayers.TimeUnit.MINUTES, //
                 timeRange: [startTime, endTime], //
                 timeStep: serverConfig.timeStep, //
                 timeFrameRate: serverConfig.timeFrameRate, //
@@ -336,6 +336,10 @@
 					var downloadList = app.tools["downloadgrid"];
 					
 					var wpsClient = app.tools["wpsSPM"];
+					
+					var panelEast = app.portalItems[0].items[2];
+					
+					panelEast.collapse(true); 
 					
 					downloadList.on(
 						'startDownload', function(fileNames){
@@ -428,7 +432,7 @@
 														window.open(link,'_self');
 														Ext.Msg.show({
 														   title:'Download',
-														   msg: 'Click <a href=\"' + link + '\">HERE</a> if the download don\'t start automatically',
+														   msg: 'Click <a href=\"' + link + '\">HERE</a> if the download doesn\'t start automatically',
 														   buttons: Ext.Msg.OK,
 														   fn: function(btn, text) {
 																
@@ -454,6 +458,9 @@
 					
 					wfsGrid.on(
 						'itemAdded', function(record){
+						
+							setLatest24Hours(playback);
+						
 							var n = record.id.split(".");
 							var index = parseInt(n[n.length-1]);
 							if(!(downloadList.grid.store.getById(index) === undefined)){
@@ -465,7 +472,7 @@
 							}
 							var newRecord = new downloadList.grid.store.recordType(el, index);
 							downloadList.grid.store.add(newRecord);
-							//app.portalItems[0].items[2].expand(true);
+							panelEast.expand(true);
 					});	
 					
 					wfsGrid.store.on(
@@ -484,17 +491,23 @@
 							
 							var handleTimeChange = function(slider, e){
 								var test = slider;
-									timeFilter = buildTimeIntervalFilter(playback.playbackToolbar.slider);
-									wfsGrid.store.reload();
-									
-									//remove the selected layers
-									var targetLayer = app.mapPanel.map.getLayersByName("selectedFeature")[0];
-									if(targetLayer){
-										app.mapPanel.map.removeLayer(targetLayer);
-									}
-									wfsGrid.grid.getSelectionModel().clearSelections();
-									downloadList.grid.getStore().removeAll();
+								timeFilter = buildTimeIntervalFilter(playback.playbackToolbar.slider);
+								wfsGrid.store.reload();
+								
+								//remove the selected layers
+								var targetLayer = app.mapPanel.map.getLayersByName("selectedFeature")[0];
+								if(targetLayer){
+									app.mapPanel.map.removeLayer(targetLayer);
+								}
+								wfsGrid.grid.getSelectionModel().clearSelections();
+								downloadList.grid.getStore().removeAll();
+								panelEast.collapse(true);
 							};
+							
+							// if no other events are fired means that we are at startup, so setup the initial interval
+							debugger;
+							setLatest24Hours(playback);
+							handleTimeChange(playback.playbackToolbar.slider);
 							
 							playback.playbackToolbar.slider.on({
 								'dragend': function(slider, e){
@@ -521,7 +534,18 @@
 				}
             });
       };
-		
+	
+	  function setLatest24Hours(playback){
+		var slider = playback.playbackToolbar.slider;
+		//getting current timestamp
+		//var now = new Date().getTime();
+		var max = slider.maxValue;
+		//grey thumb
+		slider.setValue(0,max, true);
+		// red thumbs
+		slider.setValue(1,max-86400000, true);
+	  }
+	
 	  function buildTimeIntervalFilter(slider){
 		var minTimestamp = slider.getValues()[1];
 		var maxTimestamp = slider.getValues()[0];
