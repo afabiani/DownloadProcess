@@ -148,7 +148,9 @@ gxp.PlaybackToolbar = Ext.extend(Ext.Toolbar, {
 
             "back",
 
-			"play"
+			"play",
+			
+			"fullRange"
         );
         gxp.PlaybackToolbar.superclass.initComponent.call(this);  
 
@@ -268,11 +270,14 @@ gxp.PlaybackToolbar = Ext.extend(Ext.Toolbar, {
             'currenttime': {
                 iconCls: 'gxp-icon-currenttime',
                 ref:'btnCurrentTime',
-                handler: this.control.currenttime,
+                handler: function(){//MARIS
+					self.control.currenttime();
+					self.fireEvent('fullRange', self.slider);
+				},
                 scope: this.control,
                 tooltip: this.resetTooltip,
                 menuText: this.resetLabel,
-                text: (this.labelButtons) ? this.resetLabel : false,
+                text: (this.labelButtons) ? this.resetLabel : false
             },            
             'pause': {
                 iconCls: 'gxp-icon-pause',

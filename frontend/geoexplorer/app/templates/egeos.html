@@ -311,7 +311,8 @@
             }, mapIdentifier, authorization, fullScreen);   
             
 			var timeFilter;
-   
+			var extentFilter;
+			
             app.on({
                 'portalready' : function(){
                     if(fullScreen){
@@ -340,6 +341,26 @@
 					var panelEast = app.portalItems[0].items[2];
 					
 					panelEast.collapse(true); 
+					
+					var map = app.mapPanel.map;
+					app.mapPanel.map.events.register('moveend', map, function(){
+						var extent = map.getExtent();
+						extentFilter = extent.toBBOX();
+						var bbox = extentFilter.split(",");
+						var leftBottom = new OpenLayers.Geometry.Point(bbox[0],bbox[1]);
+						leftBottom = leftBottom.transform(
+								new OpenLayers.Projection("EPSG:900913"), new OpenLayers.Projection("EPSG:4326")
+							);
+						var rightTop = new OpenLayers.Geometry.Point(bbox[2],bbox[3]);
+						rightTop = rightTop.transform(
+								new OpenLayers.Projection("EPSG:900913"), new OpenLayers.Projection("EPSG:4326")
+							);
+						extentFilter = leftBottom.x + "," + leftBottom.y + "," + rightTop.x + "," + rightTop.y;
+						
+						wfsGrid.store.reload();
+					});
+					
+					
 					
 					var handleTimeChange = function(slider, e){
 						var test = slider;
@@ -494,11 +515,12 @@
 
 					wfsGrid.store.on(
 						'beforeload', function(store,options){
-							
+							var and = " AND ";
+							var cqlExtentFilter = "BBOX(the_geom," + extentFilter + ")";
 							if(timeFilter === undefined){
 								timeFilter = 'time DURING 1900-12-24T17:00:00.000Z/1900-12-24T17:30:00.000Z';
 							}
-							options.params['CQL_FILTER'] = timeFilter;
+							options.params['CQL_FILTER'] = timeFilter + and + cqlExtentFilter;
 					});
 					
 					wfsGrid.store.reload();
@@ -526,6 +548,10 @@
 								},
 								
 								'play': function(slider){
+									handleTimeChange(slider);
+								},
+								
+								'fullRange': function(slider){
 									handleTimeChange(slider);
 								}
 								

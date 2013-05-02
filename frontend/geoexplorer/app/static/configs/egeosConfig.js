@@ -92,11 +92,6 @@
 			"actions": ["->"], 
 			"actionTarget": "paneltbar"
 		},
-	    {
-			"ptype": "gxp_dynamicgeocoder",
-			"outputTarget":"paneltbar",
-			"index": 27
-		},
 		{
 			"ptype": "gxp_wfsgrid",
 			"id": "featuregrid",
