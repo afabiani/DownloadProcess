@@ -101,6 +101,8 @@
 			"featureType": "TEM_QL__1P_mosaic_idx",
 			"zoomToTooltip": "zoom to AOI",
 			"projection": "EPSG:4326",
+			"fieldForSort": "time",
+			"sortDirection": "DESC",
 			"fields": [
 			  {
 				"name": "geometry",            

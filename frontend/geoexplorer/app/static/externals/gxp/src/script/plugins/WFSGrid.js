@@ -70,6 +70,10 @@ gxp.plugins.WFSGrid = Ext.extend(gxp.plugins.Tool, {
 	
 	projection: "",
 	
+	fieldForSort: "",
+	
+	sortDirection: "",
+	
     /** private: method[constructor]
      */
     constructor: function(config) {
@@ -82,7 +86,7 @@ gxp.plugins.WFSGrid = Ext.extend(gxp.plugins.Tool, {
 			root: 'features',
 			idProperty: 'id', 
 			typeName: this.featureType,
-			
+			sortInfo: {field:this.fieldForSort, direction:this.sortDirection},
 			proxy : new Ext.data.HttpProxy({
 				method: 'GET',
 				url: this.wfsURL
