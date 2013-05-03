@@ -271,7 +271,7 @@ gxp.PlaybackToolbar = Ext.extend(Ext.Toolbar, {
                 iconCls: 'gxp-icon-currenttime',
                 ref:'btnCurrentTime',
                 handler: function(){//MARIS
-					self.control.currenttime();
+					//self.control.currenttime();
 					self.fireEvent('fullRange', self.slider);
 				},
                 scope: this.control,

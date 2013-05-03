@@ -552,7 +552,14 @@
 								},
 								
 								'fullRange': function(slider){
-									handleTimeChange(slider);
+									playback.timeManager.clearTimer();
+									setLatest24Hours(playback);
+									handleTimeChange(playback.playbackToolbar.slider);
+									/*var minTimestamp = slider.getValues()[1];
+									var maxTimestamp = slider.getValues()[0];
+									if(slider.maxValue ==  maxTimestamp && slider.minValue == minTimestamp){
+										handleTimeChange(slider);
+									}*/
 								}
 								
 							});
