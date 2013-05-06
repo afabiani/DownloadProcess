@@ -195,7 +195,7 @@ public class DownloadProcess implements GSProcess {
         }
         LOGGER.info("Added " + counter + " raster resources to resources Map.");
 
-        String cqlFilter = buildCQLFilterMinMaxIntervalAndFranulesBBox(minTime, maxTime, mosaicDir, granuleNames);
+        String cqlFilter = buildCQLFilterMinMaxIntervalAndGranulesBBox(minTime, maxTime, mosaicDir, granuleNames);
 
         SimpleHttpConnectionManager httpConnectionManager = new SimpleHttpConnectionManager();
         
@@ -208,7 +208,7 @@ public class DownloadProcess implements GSProcess {
 
         // Create the KMZ with the selected features
         File fKMZ = new File(outputDirectory + shipDetectionLayer + UUID.randomUUID() + ".kmz");
-        String urlKMZ = composeWMSUrl(ws.getName(), shipDetectionLayer, cqlFilter, "kml");
+        String urlKMZ = composeWMSUrl(ws.getName(), shipDetectionLayer, mosaicDir, granuleNames, "kml", minTime, maxTime);
         downloadVectorDataFromLocalhost(urlKMZ, fKMZ, httpConnectionManager);
         outputResources.addDeletableResource(fKMZ);
         LOGGER.info("Added the KMZ to resources Map.");
@@ -273,21 +273,22 @@ public class DownloadProcess implements GSProcess {
         return url;
     }
     
-    private String composeWMSUrl(String workspace, String layer, String cqlFilter, String format) {
+    private String composeWMSUrl(String workspace, String layer, File mosaicDir, List<String> granulesFileNames, String format, String minTime, String maxTime) {
 
         String localBaseURL = baseURL;
-        if(StringUtils.isBlank(localBaseURL)){
+        if (StringUtils.isBlank(localBaseURL)) {
             Request req = Dispatcher.REQUEST.get();
             String requestURL = req.getHttpRequest().getRequestURL().toString();
             String requestURLArray[] = requestURL.split("/");
             localBaseURL = "http://" + requestURLArray[2] + "/" + requestURLArray[3];
         }
+        GranulesManager gm = new GranulesManager(mosaicDir);
+        Map<String,BoundingBox> bboxMap = gm.searchBoundingBoxes(granulesFileNames);
         // http://localhost:8080/geoserver/mariss/wms/kml?layers=mariss:tem_sd__1p
         StringBuilder sb = new StringBuilder();
-        sb.append(localBaseURL)
-                .append("/").append(workspace)
-                .append("/wms/").append(format).append("?layers=")
-                .append(workspace).append(":").append(layer).append(cqlFilter);
+        sb.append(localBaseURL).append("/").append(workspace).append("/wms/").append(format)
+                .append("?layers=").append(workspace).append(":").append(layer)
+                .append("&styles=point&mode=download").append("&time=").append(minTime).append("/").append(maxTime).append("&CQL_FILTER=").append(concatCqlBBOXFilters(bboxMap));
 
         String url = sb.toString();
         LOGGER.info("URL for download the '" + format + "' file composed");
@@ -330,7 +331,7 @@ public class DownloadProcess implements GSProcess {
         return true;
     }
     
-    public static String buildCQLFilterMinMaxIntervalAndFranulesBBox(/*List<String> timeList, */String minTime, String maxTime, File mosaicDir, List<String> granulesFileNames) {
+    public static String buildCQLFilterMinMaxIntervalAndGranulesBBox(/*List<String> timeList, */String minTime, String maxTime, File mosaicDir, List<String> granulesFileNames) {
 
         /*
          * EXAMPLE:
@@ -387,15 +388,7 @@ public class DownloadProcess implements GSProcess {
             LOGGER.info("Time Interval added to CQL filter");
             if(!bboxMap.isEmpty()){
                 sb.append("%20AND%20(");
-                boolean first = true;
-                for(String el : bboxMap.keySet()){
-                    if(!first){
-                        sb.append("%20OR%20");
-                    }
-                    first = false;
-                    sb.append(buildCqlBBOXFilter(bboxMap.get(el)));
-                }
-                LOGGER.info("BBOX filters added to CQL filter");
+                sb.append(concatCqlBBOXFilters(bboxMap));
                 sb.append(")");
             }
             
@@ -409,6 +402,19 @@ public class DownloadProcess implements GSProcess {
         return cqlFilter;
     }
     
+    private static String concatCqlBBOXFilters(Map<String,BoundingBox> bboxMap){
+        StringBuilder sb = new StringBuilder();
+        boolean first = true;
+        for(String el : bboxMap.keySet()){
+            if(!first){
+                sb.append("%20OR%20");
+            }
+            first = false;
+            sb.append(buildCqlBBOXFilter(bboxMap.get(el)));
+        }
+        LOGGER.info("BBOX filters added to CQL filter");
+        return sb.toString();
+    }
     
     private static String buildCqlBBOXFilter(BoundingBox bbox){
       //BBOX(wkb_geometry,9.887190592840616,37.981477602075785,10.310190592840616,38.38117760207579)
