@@ -22,7 +22,6 @@ package it.geosolutions.mariss.wps.gs;
 
 import java.io.File;
 import java.net.URL;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -32,13 +31,15 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.geotools.data.DataUtilities;
-import org.geotools.gce.imagemosaic.GranuleDescriptor;
-import org.geotools.gce.imagemosaic.MosaicConfigurationBean;
+import org.geotools.data.Query;
+import org.geotools.data.simple.SimpleFeatureCollection;
+import org.geotools.data.simple.SimpleFeatureIterator;
+import org.geotools.factory.Hints;
 import org.geotools.gce.imagemosaic.Utils;
-import org.geotools.gce.imagemosaic.Utils.Prop;
+import org.geotools.gce.imagemosaic.catalog.CatalogConfigurationBean;
 import org.geotools.gce.imagemosaic.catalog.GranuleCatalogFactory;
-import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.util.logging.Logging;
+import org.opengis.feature.simple.SimpleFeature;
 import org.opengis.geometry.BoundingBox;
 
 /**
@@ -48,8 +49,7 @@ import org.opengis.geometry.BoundingBox;
 public class GranulesManager {
 
     static final Logger LOGGER = Logging.getLogger(GranulesManager.class);
-    
-    Collection<GranuleDescriptor> granules;
+    SimpleFeatureCollection granules;
     
     public GranulesManager(File mosaicDir){
         if(mosaicDir == null || !mosaicDir.exists() || !mosaicDir.isDirectory() || !mosaicDir.canRead()){
@@ -60,7 +60,13 @@ public class GranulesManager {
         } 
     }
     
-    private Collection<GranuleDescriptor> loadGranulesDescriptor(File mosaicDir) throws IllegalStateException{
+    /**
+     * Obtain the feature collection 
+     * @param mosaicDir
+     * @return
+     * @throws IllegalStateException
+     */
+	private SimpleFeatureCollection loadGranulesDescriptor(File mosaicDir) throws IllegalStateException{
         File datastore = new File(mosaicDir, "datastore.properties");
         File shapeFile = null;
         File indexFound = null;
@@ -85,44 +91,59 @@ public class GranulesManager {
             }
             indexFound = shapeFile;
         }
-        Collection<GranuleDescriptor> granules = null;
+        SimpleFeatureCollection sfc = null;
         try {
             String [] splittedURL = mosaicDir.toURI().toURL().toString().split("/");
-            MosaicConfigurationBean mcb = loadMosaicProperties(new URL(mosaicDir.toURI().toURL()+splittedURL[splittedURL.length-1]), "");
-            granules = GranuleCatalogFactory.createGranuleCatalog(indexFound.toURI().toURL(), mcb).getGranules();
+            
+            CatalogConfigurationBean mcb = loadProperties(new URL(mosaicDir.toURI().toURL()+splittedURL[splittedURL.length-1]), "");
+            sfc = GranuleCatalogFactory.createGranuleCatalog(indexFound.toURI().toURL(), mcb, null, new Hints()).getGranules(new Query(mcb.getTypeName()));            
         } catch (Exception e) {
             LOGGER.severe(e.getMessage());
             return null;
         }
-        return granules;
+        return sfc;
     }
     
     public Map<String, BoundingBox> searchBoundingBoxes(List<String> granulesFileNames){
         Map<String, BoundingBox> bboxMap = new HashMap<String, BoundingBox>();
-        for(GranuleDescriptor el : this.granules){
-            String [] urlSplitted = el.getGranuleUrl().toString().split("/");
-            if(granulesFileNames.contains(urlSplitted[urlSplitted.length-1])){
-                bboxMap.put(el.getGranuleUrl().getFile(), el.getGranuleBBOX());
-            }
+        
+        SimpleFeatureIterator featureIterator = null;
+        try{
+        	featureIterator =  this.granules.features();
+        	while(featureIterator.hasNext()){
+        		SimpleFeature feature = featureIterator.next();
+        		String location = (String) feature.getAttribute("location");
+        		String [] urlSplitted = location.split("/");
+        		if(granulesFileNames.contains(urlSplitted[urlSplitted.length-1])){
+                  bboxMap.put(location, feature.getBounds());
+        		}
+        	}
+        }catch (Exception e){
+        	LOGGER.severe("Error getting bboxes");
+        }finally{
+        	featureIterator.close();
         }
+
         return bboxMap;
     }
     
     // **************************************************************************************
-    // TODO The following 2 methods are copied by org.geotools.gce.imagemosaic.Utils class, 
-    //  declare them public or investigate if other public similar method are avaiable somewhere.
-    // **************************************************************************************    
-    private static MosaicConfigurationBean loadMosaicProperties(final URL sourceURL,
-            final String defaultLocationAttribute) {
-        return loadMosaicProperties(sourceURL, defaultLocationAttribute, null);
+    // TODO The following load the properties from the source url properties into 
+    // the CatalogConfigurationBean
+    // **************************************************************************************
+    
+    private static CatalogConfigurationBean loadProperties(
+            final URL sourceURL,
+            final String defaultLocationAttribute){
+    	return loadProperties(sourceURL, defaultLocationAttribute, null);
     }
     
-    private static MosaicConfigurationBean loadMosaicProperties(
+    private static CatalogConfigurationBean loadProperties(
             final URL sourceURL,
             final String defaultLocationAttribute, 
             final Set<String> ignorePropertiesSet) {
             // ret value
-            final MosaicConfigurationBean retValue = new MosaicConfigurationBean();
+            final CatalogConfigurationBean retValue = new CatalogConfigurationBean();
             final boolean ignoreSome = ignorePropertiesSet != null && !ignorePropertiesSet.isEmpty();
 
             //
@@ -137,170 +158,51 @@ public class GranulesManager {
                             LOGGER.info("Unable to load mosaic properties file");
                     return null;
             }
-
-            String[] pairs = null;
-            String pair[] = null;
             
-            //
-            // imposed bbox is optional
-            //              
-            if (!ignoreSome || !ignorePropertiesSet.contains(Prop.ENVELOPE2D)) {
-                    String bboxString = properties.getProperty(Prop.ENVELOPE2D, null);
-                    if(bboxString!=null){
-                            bboxString=bboxString.trim();
-                            try{
-                                    ReferencedEnvelope bbox = Utils.parseEnvelope(bboxString);
-                                    if(bbox!=null)
-                                            retValue.setEnvelope(bbox);
-                                    else
-                                            if (LOGGER.isLoggable(Level.INFO))
-                                                    LOGGER.info("Cannot parse imposed bbox.");
-                            }catch (Exception e) {
-                                    if (LOGGER.isLoggable(Level.INFO))
-                                            LOGGER.log(Level.INFO,"Cannot parse imposed bbox.",e);
-                            }
-                    }
-                            
-            }
-            
-            //
-            // resolutions levels
-            //              
-            if (!ignoreSome || !ignorePropertiesSet.contains(Prop.LEVELS)) {
-                    int levelsNumber = Integer.parseInt(properties.getProperty(
-                                    Prop.LEVELS_NUM, "1").trim());
-                    retValue.setLevelsNum(levelsNumber);
-                    if (!properties.containsKey(Prop.LEVELS)) {
-                            if (LOGGER.isLoggable(Level.INFO))
-                                    LOGGER.info("Required key Levels not found.");
-                            return null;
-                    }
-                    final String levels = properties.getProperty(Prop.LEVELS).trim();
-                    pairs = levels.split(" ");
-                    if (pairs == null || pairs.length != levelsNumber) {
-                            if (LOGGER.isLoggable(Level.INFO))
-                                    LOGGER
-                                                    .info("Levels number is different from the provided number of levels resoltion.");
-                            return null;
-                    }
-                    final double[][] resolutions = new double[levelsNumber][2];
-                    for (int i = 0; i < levelsNumber; i++) {
-                            pair = pairs[i].split(",");
-                            if (pair == null || pair.length != 2) {
-                                    if (LOGGER.isLoggable(Level.INFO))
-                                            LOGGER
-                                                            .info("OverviewLevel number is different from the provided number of levels resoltion.");
-                                    return null;
-                            }
-                            resolutions[i][0] = Double.parseDouble(pair[0]);
-                            resolutions[i][1] = Double.parseDouble(pair[1]);
-                    }
-                    retValue.setLevels(resolutions);
-            }
-
-            //
-            // suggested spi is optional
-            //
-            if (!ignoreSome || !ignorePropertiesSet.contains(Prop.SUGGESTED_SPI)) {
-                    if (properties.containsKey(Prop.SUGGESTED_SPI)) {
-                            final String suggestedSPI = properties.getProperty(
-                                            Prop.SUGGESTED_SPI).trim();
-                            retValue.setSuggestedSPI(suggestedSPI);
-                    }
-            }
-
-            //
-            // time attribute is optional
-            //
-            if (properties.containsKey(Prop.TIME_ATTRIBUTE)) {
-                    final String timeAttribute = properties.getProperty("TimeAttribute").trim();
-                    retValue.setTimeAttribute(timeAttribute);
-            }
-
-            //
-            // elevation attribute is optional
-            //
-            if (properties.containsKey(Prop.ELEVATION_ATTRIBUTE)) {
-                    final String elevationAttribute = properties.getProperty(Prop.ELEVATION_ATTRIBUTE).trim();
-                    retValue.setElevationAttribute(elevationAttribute);
-            }
-
-
-            //
-            // caching
-            //
-            if (properties.containsKey(Prop.CACHING)) {
-                    String caching = properties.getProperty(Prop.CACHING).trim();
-                    try {
-                            retValue.setCaching(Boolean.valueOf(caching));
-                    } catch (Throwable e) {
-                            retValue.setCaching(Boolean.valueOf(false));
-                    }
-            }
-
-            //
-            // name is not optional
-            //
-            if (!ignoreSome || !ignorePropertiesSet.contains(Prop.NAME)){
-                if(!properties.containsKey(Prop.NAME)) {
-                        if(LOGGER.isLoggable(Level.SEVERE))
-                                LOGGER.severe("Required key Name not found.");          
-                        return  null;
-                }                       
-                String coverageName = properties.getProperty(Prop.NAME).trim();
-                retValue.setName(coverageName);
-            }
-
-            // need a color expansion?
-            // this is a newly added property we have to be ready to the case where
-            // we do not find it.
-            if (!ignoreSome || !ignorePropertiesSet.contains(Prop.EXP_RGB)) {
-                    final boolean expandMe = Boolean.valueOf(properties.getProperty(
-                                    Prop.EXP_RGB, "false").trim());
-                    retValue.setExpandToRGB(expandMe);
-            }
-            
-            // 
-            // Is heterogeneous granules mosaic
-            //
-            if (!ignoreSome || !ignorePropertiesSet.contains(Prop.HETEROGENEOUS)) {
-                final boolean heterogeneous = Boolean.valueOf(properties.getProperty(
-                        Prop.HETEROGENEOUS, "false").trim());
-                retValue.setHeterogeneous(heterogeneous);
-            }
-
-            //
-            // Absolute or relative path
-            //
-            if (!ignoreSome || !ignorePropertiesSet.contains(Prop.ABSOLUTE_PATH)) {
-                    final boolean absolutePath = Boolean.valueOf(properties
-                                    .getProperty(Prop.ABSOLUTE_PATH,
-                                                    Boolean.toString(Utils.DEFAULT_PATH_BEHAVIOR))
-                                    .trim());
-                    retValue.setAbsolutePath(absolutePath);
-            }
-
-            //
-            // Footprint management
-            //
             if (!ignoreSome
-                            || !ignorePropertiesSet.contains(Prop.FOOTPRINT_MANAGEMENT)) {
-                    final boolean footprintManagement = Boolean.valueOf(properties
-                                    .getProperty(Prop.FOOTPRINT_MANAGEMENT, "false").trim());
-                    retValue.setFootprintManagement(footprintManagement);
+                    || !ignorePropertiesSet.contains(Utils.Prop.PATH_TYPE)) {
+            	final boolean absolutePath = Boolean.valueOf(properties
+                            .getProperty(Utils.Prop.PATH_TYPE, "false").trim());
+            	retValue.setAbsolutePath(absolutePath);
             }
-
-            //
-            // location
-            //  
+            
             if (!ignoreSome
-                            || !ignorePropertiesSet.contains(Prop.LOCATION_ATTRIBUTE)) {
-                    retValue.setLocationAttribute(properties.getProperty(
-                                    Prop.LOCATION_ATTRIBUTE, Utils.DEFAULT_LOCATION_ATTRIBUTE)
-                                    .trim());
+                    || !ignorePropertiesSet.contains(Utils.Prop.LOCATION_ATTRIBUTE)) {
+            	final String locationAttribute = properties
+                            .getProperty(Utils.Prop.LOCATION_ATTRIBUTE, "").trim();
+            	retValue.setLocationAttribute(locationAttribute);
             }
-
-            // return value
+            
+            if ((!ignoreSome
+                    || !ignorePropertiesSet.contains(Utils.Prop.SUGGESTED_SPI))
+                    && properties.contains(Utils.Prop.SUGGESTED_SPI)) {
+            	final String suggestedSPI = properties
+                            .getProperty(Utils.Prop.SUGGESTED_SPI, "").trim();
+            	retValue.setSuggestedSPI(suggestedSPI);
+            }
+            
+            
+            if (!ignoreSome
+                    || !ignorePropertiesSet.contains(Utils.Prop.HETEROGENEOUS)) {
+            	final boolean heterogeneous = Boolean.valueOf(properties
+                        .getProperty(Utils.Prop.HETEROGENEOUS, "false").trim());
+            	retValue.setHeterogeneous(heterogeneous);
+            }
+            
+            if (!ignoreSome
+                    || !ignorePropertiesSet.contains(Utils.Prop.TYPENAME)) {
+            	final String typeName = properties
+                        .getProperty(Utils.Prop.TYPENAME, "").trim();
+            	retValue.setTypeName(typeName);
+            }	
+            
+            if (!ignoreSome
+                    || !ignorePropertiesSet.contains(Utils.Prop.CACHING)) {
+            	final boolean caching = Boolean.valueOf(properties
+                            .getProperty(Utils.Prop.CACHING, "false").trim());
+            	retValue.setCaching(caching);
+            }
+            
             return retValue;
     }
 }

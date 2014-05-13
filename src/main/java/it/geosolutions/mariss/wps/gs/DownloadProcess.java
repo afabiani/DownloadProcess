@@ -106,7 +106,7 @@ public class DownloadProcess implements GSProcess {
      * @param filename
      * @return
      */
-    @DescribeResult(name = "ResourcesList", description = "A list of File pointer to the resources found and created")
+    @DescribeResult(name = "ResourcesList", description = "A list of File pointer to the resources found and created", type=OutputResource.class)
     public OutputResource execute(
             @DescribeParameter(name = "MinTime", min = 0, description = "The start time of the Interval") String minTime,
             @DescribeParameter(name = "MaxTime", min = 0, description = "The end time of the Interval") String maxTime,
@@ -157,9 +157,9 @@ public class DownloadProcess implements GSProcess {
 
         // retrieve the mosaic path
         String mosaicURL = storeInfo.getURL();
-        File mosaicDir = new File(mosaicURL);
+        File mosaicDir = new File(mosaicURL.replace("file:///", "/"));
         if (!mosaicDir.canRead() || !mosaicDir.isDirectory()) {
-            throw new ProcessException("Probles occurred when try to access to the mosaic dir'"
+            throw new ProcessException("Problems occurred when try to access to the mosaic dir '"
                     + mosaicURL + "', please check if it is accessible.");
         }
         LOGGER.fine("Mosaic Path found");

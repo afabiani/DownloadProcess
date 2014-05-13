@@ -6,19 +6,25 @@
 	<groupId>org.geoserver</groupId>
 	<artifactId>download_process</artifactId>
 	<packaging>jar</packaging>
-	<version>2.2-SNAPSHOT</version>
+	<version>${gs.version}</version>
 	<name>download_process</name>
+
+	<properties>
+	  <gs.version>2.4-SNAPSHOT</gs.version>
+	  <gt.version>10-SNAPSHOT</gt.version>
+	</properties>
+
 	<dependencies>
 		<dependency>
 			<groupId>org.geotools</groupId>
 			<artifactId>gt-process</artifactId>
-			<version>8-SNAPSHOT</version>
+			<version>${gt.version}</version>
 			<scope>provided</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.geoserver.extension</groupId>
 			<artifactId>wps-core</artifactId>
-			<version>2.2-SNAPSHOT</version>
+			<version>${gs.version}</version>
 			<scope>provided</scope>
 		</dependency>
 		<dependency>
@@ -36,7 +42,7 @@
 		<dependency>
 			<groupId>org.geoserver</groupId>
 			<artifactId>main</artifactId>
-			<version>2.2-SNAPSHOT</version>
+			<version>${gs.version}</version>
 			<scope>provided</scope>
 		</dependency>
 		<dependency>
